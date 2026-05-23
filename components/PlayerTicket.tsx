@@ -35,12 +35,12 @@ export function PlayerTicket({
                 cell === null
                   ? "cursor-default border-transparent bg-ink/[0.045] text-transparent"
                   : isMarked
-                    ? "border-gulal bg-gulal text-white line-through"
+                    ? "border-gulal bg-gulal text-white line-through cursor-pointer hover:bg-gulal/90"
                     : isLatest
-                      ? "border-saffron bg-saffron text-white"
+                      ? "border-saffron border-2 bg-white text-ink cursor-pointer hover:bg-saffron/10 animate-pulse"
                       : isCalled
-                        ? "border-mint bg-mint/12 text-mint hover:bg-mint hover:text-white"
-                        : "border-ink/12 bg-white text-ink/45"
+                        ? "border-ink bg-white text-ink cursor-pointer hover:bg-ink/5"
+                        : "border-ink/10 bg-ink/[0.02] text-ink/25 cursor-not-allowed"
               ].join(" ")}
               disabled={cell === null || !isCalled}
               onClick={() => {

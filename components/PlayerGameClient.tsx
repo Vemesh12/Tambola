@@ -102,8 +102,11 @@ function LoadedPlayerGame({
     setError("");
   }, []);
 
-  const loadPlayer = useCallback(() => {
-    setIsLoading(true);
+  const loadPlayer = useCallback((options?: { silent?: boolean }) => {
+    const silent = options?.silent ?? false;
+    if (!silent) {
+      setIsLoading(true);
+    }
 
     fetch(`/api/rooms/${code}/players/${storedPlayer.playerId}`, {
       cache: "no-store"
@@ -134,14 +137,18 @@ function LoadedPlayerGame({
     const pusher = getPusherClient();
     const channel = pusher.subscribe(`room-${code}`);
 
-    channel.bind("number-called", loadPlayer);
-    channel.bind("winner-claimed", loadPlayer);
-    channel.bind("game-started", loadPlayer);
+    const handleUpdate = () => {
+      loadPlayer({ silent: true });
+    };
+
+    channel.bind("number-called", handleUpdate);
+    channel.bind("winner-claimed", handleUpdate);
+    channel.bind("game-started", handleUpdate);
 
     return () => {
-      channel.unbind("number-called", loadPlayer);
-      channel.unbind("winner-claimed", loadPlayer);
-      channel.unbind("game-started", loadPlayer);
+      channel.unbind("number-called", handleUpdate);
+      channel.unbind("winner-claimed", handleUpdate);
+      channel.unbind("game-started", handleUpdate);
       pusher.unsubscribe(`room-${code}`);
     };
   }, [code, loadPlayer]);
@@ -258,7 +265,7 @@ function LoadedPlayerGame({
         </div>
         <button
           className="h-11 rounded-md border border-ink/12 bg-white/80 px-5 text-sm font-bold text-ink transition hover:bg-white"
-          onClick={loadPlayer}
+          onClick={() => loadPlayer({ silent: true })}
           type="button"
         >
           Refresh
