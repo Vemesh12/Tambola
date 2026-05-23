@@ -20,8 +20,12 @@ function range(start: number, end: number) {
   return Array.from({ length: end - start + 1 }, (_, index) => start + index);
 }
 
-function pickRandomNumbers(min: number, max: number, count: number) {
-  return shuffle(range(min, max)).slice(0, count).sort((a, b) => a - b);
+function pickRandomNumbers(min: number, max: number, count: number, exclude?: Set<number>) {
+  const available = range(min, max).filter((n) => !(exclude && exclude.has(n)));
+  if (available.length < count) {
+    throw new Error('Not enough numbers to pick without repeats');
+  }
+  return shuffle(available).slice(0, count).sort((a, b) => a - b);
 }
 
 function columnRange(col: number) {
@@ -84,7 +88,7 @@ function createValidMask() {
   throw new Error("Unable to generate a valid Tambola ticket mask");
 }
 
-export function generateTicket(): TicketGrid {
+export function generateTicket(exclude?: Set<number>): TicketGrid {
   const mask = createValidMask();
   const ticket: TicketGrid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
 
@@ -93,7 +97,7 @@ export function generateTicket(): TicketGrid {
       .map((row, rowIndex) => (row[col] ? rowIndex : null))
       .filter((rowIndex): rowIndex is number => rowIndex !== null);
     const { min, max } = columnRange(col);
-    const numbers = pickRandomNumbers(min, max, rowsInColumn.length);
+    const numbers = pickRandomNumbers(min, max, rowsInColumn.length, exclude);
 
     rowsInColumn.forEach((row, index) => {
       ticket[row][col] = numbers[index];

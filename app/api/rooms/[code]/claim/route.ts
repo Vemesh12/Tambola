@@ -13,6 +13,7 @@ type ClaimPrizeRouteProps = {
 type ClaimPrizeBody = {
   playerId?: string;
   prizeType?: PrizeType;
+  ticketIndex?: number;
 };
 
 const validPrizeTypes: PrizeType[] = [
@@ -46,6 +47,8 @@ export async function POST(request: Request, { params }: ClaimPrizeRouteProps) {
   if (!isPrizeType(body.prizeType)) {
     return NextResponse.json({ error: "Choose a valid prize type" }, { status: 400 });
   }
+
+  const ticketIndex = typeof body.ticketIndex === "number" ? body.ticketIndex : 0;
 
   try {
     const supabase = createServerSupabaseClient();
@@ -82,14 +85,27 @@ export async function POST(request: Request, { params }: ClaimPrizeRouteProps) {
       return NextResponse.json({ error: "Player not found in this room" }, { status: 404 });
     }
 
+    const ticketField = player.ticket as any;
+    const normalizedTickets = ticketField.tickets || [
+      {
+        rows: ticketField.rows,
+        marked: player.marked || []
+      }
+    ];
+
+    if (ticketIndex < 0 || ticketIndex >= normalizedTickets.length) {
+      return NextResponse.json({ error: "Invalid ticket index" }, { status: 400 });
+    }
+
+    const targetTicket = normalizedTickets[ticketIndex];
     const called = new Set(room.called_numbers);
-    const allMarksWereCalled = player.marked.every((number) => called.has(number));
+    const allMarksWereCalled = targetTicket.marked.every((number: number) => called.has(number));
 
     if (!allMarksWereCalled) {
       return NextResponse.json({ error: "Ticket has marks for uncalled numbers" }, { status: 409 });
     }
 
-    if (!checkPrize(player.ticket.rows, player.marked, body.prizeType)) {
+    if (!checkPrize(targetTicket.rows, targetTicket.marked, body.prizeType)) {
       return NextResponse.json({ error: "This ticket is not eligible for that prize yet" }, { status: 409 });
     }
 
@@ -111,12 +127,16 @@ export async function POST(request: Request, { params }: ClaimPrizeRouteProps) {
       );
     }
 
+    const displayName = normalizedTickets.length > 1
+      ? `${player.name} (Ticket #${ticketIndex + 1})`
+      : player.name;
+
     const { data: winner, error: winnerError } = await supabase
       .from("winners")
       .insert({
         room_id: room.id,
         player_id: player.id,
-        player_name: player.name,
+        player_name: displayName,
         prize_type: body.prizeType
       })
       .select("id, room_id, player_id, player_name, prize_type, claimed_at")

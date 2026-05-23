@@ -44,6 +44,19 @@ export async function GET(_request: Request, { params }: PlayerStateRouteProps) 
       return NextResponse.json({ error: "Player not found in this room" }, { status: 404 });
     }
 
+    const ticketField = player.ticket as any;
+    if (!ticketField.tickets) {
+      player.ticket = {
+        rows: ticketField.rows,
+        tickets: [
+          {
+            rows: ticketField.rows,
+            marked: player.marked || []
+          }
+        ]
+      };
+    }
+
     const { data: winners, error: winnersError } = await supabase
       .from("winners")
       .select("id, room_id, player_id, player_name, prize_type, claimed_at")

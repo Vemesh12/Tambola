@@ -9,6 +9,7 @@ type JoinRoomBody = {
   code?: string;
   name?: string;
   sessionId?: string;
+  ticketCount?: number;
 };
 
 function normalizeRoomCode(code: string) {
@@ -82,7 +83,76 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "This room is full" }, { status: 409 });
     }
 
-    const ticket = generateTicket();
+    // Gather existing tickets (grid layouts) from players in this room to avoid identical tickets
+    const { data: existingPlayers, error: existingError } = await supabase
+      .from("players")
+      .select("ticket")
+      .eq("room_id", room.id);
+    if (existingError) {
+      return NextResponse.json({ error: existingError.message }, { status: 500 });
+    }
+    // Build a set of serialized ticket grids (rows) that already exist
+    const existingTicketGrids = new Set<string>();
+    existingPlayers?.forEach((p: any) => {
+      const ticketData = p.ticket as any;
+      if (ticketData?.rows) {
+        existingTicketGrids.add(JSON.stringify(ticketData.rows));
+      }
+      if (Array.isArray(ticketData?.tickets)) {
+        ticketData.tickets.forEach((t: any) => {
+          if (t?.rows) existingTicketGrids.add(JSON.stringify(t.rows));
+        });
+      }
+    });
+    // Also keep track of grids generated for this joining player to avoid duplicates among them
+    const usedNumbers = new Set<number>();
+    const newTicketGrids = new Set<string>();
+    existingPlayers?.forEach((p: any) => {
+      const ticketData = p.ticket as any;
+      if (ticketData?.rows) {
+        ticketData.rows.forEach((row: (number | null)[]) => {
+          row.forEach((num) => {
+            if (num !== null) usedNumbers.add(num);
+          });
+        });
+      }
+      if (Array.isArray(ticketData?.tickets)) {
+        ticketData.tickets.forEach((t: any) => {
+          t.rows?.forEach((row: (number | null)[]) => {
+            row.forEach((num) => {
+              if (num !== null) usedNumbers.add(num);
+            });
+          });
+        });
+      }
+    });
+
+    const ticketCount = typeof body.ticketCount === "number" ? Math.min(Math.max(body.ticketCount, 1), 6) : 1;
+    const tickets = [];
+    for (let i = 0; i < ticketCount; i++) {
+      let rows: any;
+      let attempts = 0;
+      const maxAttempts = 20;
+      do {
+        rows = generateTicket(usedNumbers);
+        attempts++;
+        if (attempts > maxAttempts) {
+          return NextResponse.json({ error: "Unable to generate a unique ticket" }, { status: 500 });
+        }
+      } while (existingTicketGrids.has(JSON.stringify(rows)) || newTicketGrids.has(JSON.stringify(rows)));
+      // Record numbers from this ticket to avoid repeats in subsequent tickets for this player
+      rows.forEach((row: (number | null)[]) => {
+        row.forEach((num) => {
+          if (num !== null) usedNumbers.add(num);
+        });
+      });
+      // Record the new grid fingerprint
+      const fingerprint = JSON.stringify(rows);
+      existingTicketGrids.add(fingerprint);
+      newTicketGrids.add(fingerprint);
+      tickets.push({ rows, marked: [] });
+    }
+
     const { data: player, error: playerError } = await supabase
       .from("players")
       .upsert(
@@ -90,7 +160,10 @@ export async function POST(request: Request) {
           room_id: room.id,
           name,
           session_id: sessionId,
-          ticket: { rows: ticket },
+          ticket: {
+            rows: tickets[0].rows,
+            tickets
+          },
           marked: []
         },
         {

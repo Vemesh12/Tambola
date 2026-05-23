@@ -12,6 +12,11 @@ export type RoomRecord = {
   created_at: string;
 };
 
+export type PlayerTicketDetail = {
+  rows: TicketGrid;
+  marked: number[];
+};
+
 export type PlayerRecord = {
   id: string;
   room_id: string;
@@ -19,6 +24,7 @@ export type PlayerRecord = {
   session_id: string;
   ticket: {
     rows: TicketGrid;
+    tickets?: PlayerTicketDetail[];
   };
   marked: number[];
   joined_at: string;

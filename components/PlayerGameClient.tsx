@@ -90,6 +90,7 @@ function LoadedPlayerGame({
   const [isLoading, setIsLoading] = useState(true);
   const [isMarking, setIsMarking] = useState(false);
   const [claimingPrize, setClaimingPrize] = useState<PrizeType | null>(null);
+  const [activeTicketIndex, setActiveTicketIndex] = useState(0);
 
   const applyPlayerPayload = useCallback((payload: PlayerStateResponse) => {
     if (!payload.room || !payload.player) {
@@ -167,7 +168,7 @@ function LoadedPlayerGame({
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ number })
+        body: JSON.stringify({ number, ticketIndex: activeTicketIndex })
       });
       const payload = (await response.json()) as PlayerStateResponse;
 
@@ -200,7 +201,8 @@ function LoadedPlayerGame({
         },
         body: JSON.stringify({
           playerId: player.id,
-          prizeType
+          prizeType,
+          ticketIndex: activeTicketIndex
         })
       });
       const payload = (await response.json()) as ClaimPrizeResponse;
@@ -246,8 +248,15 @@ function LoadedPlayerGame({
     return null;
   }
 
+  const tickets = player.ticket.tickets || [
+    {
+      rows: player.ticket.rows,
+      marked: player.marked || []
+    }
+  ];
+  const activeTicket = tickets[activeTicketIndex] || tickets[0];
   const claimedPrizeTypes = new Set(winners.map((winner) => winner.prize_type));
-  const eligiblePrizeTypes = getEligiblePrizes(player.ticket.rows, player.marked).filter(
+  const eligiblePrizeTypes = getEligiblePrizes(activeTicket.rows, activeTicket.marked).filter(
     (prizeType) => !claimedPrizeTypes.has(prizeType)
   );
 
@@ -274,6 +283,26 @@ function LoadedPlayerGame({
 
       <div className="grid gap-5 lg:grid-cols-[1fr_24rem]">
         <section className="rounded-lg border border-ink/10 bg-white/82 p-5 shadow-soft">
+          {tickets.length > 1 ? (
+            <div className="mb-4 flex flex-wrap gap-2 border-b border-ink/10 pb-3">
+              {tickets.map((_, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setActiveTicketIndex(idx)}
+                  className={[
+                    "h-9 px-4 rounded-md text-xs font-bold transition",
+                    activeTicketIndex === idx
+                      ? "bg-ink text-white shadow-soft"
+                      : "bg-paper text-ink/60 hover:bg-ink/5 hover:text-ink"
+                  ].join(" ")}
+                >
+                  Ticket {idx + 1}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-mint">
@@ -283,15 +312,15 @@ function LoadedPlayerGame({
             </div>
             <div className="rounded-md bg-paper px-4 py-2 text-right">
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-ink/48">Marked</p>
-              <p className="text-2xl font-black text-gulal">{player.marked.length}/15</p>
+              <p className="text-2xl font-black text-gulal">{activeTicket.marked.length}/15</p>
             </div>
           </div>
 
           <PlayerTicket
             calledNumbers={room.called_numbers}
-            markedNumbers={player.marked}
+            markedNumbers={activeTicket.marked}
             onToggleNumber={toggleNumber}
-            ticket={player.ticket.rows}
+            ticket={activeTicket.rows}
           />
 
           <p className="mt-4 text-sm font-semibold text-ink/58">

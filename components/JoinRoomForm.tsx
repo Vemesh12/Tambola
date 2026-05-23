@@ -29,6 +29,7 @@ export function JoinRoomForm() {
   const searchParams = useSearchParams();
   const [code, setCode] = useState(() => searchParams.get("code")?.toUpperCase() ?? "");
   const [name, setName] = useState("");
+  const [ticketCount, setTicketCount] = useState(1);
   const [error, setError] = useState("");
   const [isJoining, setIsJoining] = useState(false);
 
@@ -45,7 +46,8 @@ export function JoinRoomForm() {
         body: JSON.stringify({
           code,
           name,
-          sessionId: getStoredSessionId()
+          sessionId: getStoredSessionId(),
+          ticketCount
         })
       });
       const payload = (await response.json()) as JoinRoomResponse;
@@ -72,7 +74,7 @@ export function JoinRoomForm() {
 
   return (
     <div className="mt-8">
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         <div>
           <label className="block text-sm font-bold text-ink" htmlFor="room-code">
             Room code
@@ -104,6 +106,23 @@ export function JoinRoomForm() {
             type="text"
             value={name}
           />
+        </div>
+        <div>
+          <label className="block text-sm font-bold text-ink" htmlFor="ticket-count">
+            Number of tickets
+          </label>
+          <select
+            id="ticket-count"
+            className="mt-2 h-12 w-full rounded-md border border-ink/15 bg-white px-4 outline-none ring-mint/30 transition focus:ring-4"
+            onChange={(event) => setTicketCount(Number(event.target.value))}
+            value={ticketCount}
+          >
+            {[1, 2, 3, 4, 5, 6].map((num) => (
+              <option key={num} value={num}>
+                {num} {num === 1 ? "Ticket" : "Tickets"}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 

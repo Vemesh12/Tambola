@@ -11,6 +11,7 @@ type MarkNumberRouteProps = {
 
 type MarkNumberBody = {
   number?: number;
+  ticketIndex?: number;
 };
 
 export async function POST(request: Request, { params }: MarkNumberRouteProps) {
@@ -25,6 +26,7 @@ export async function POST(request: Request, { params }: MarkNumberRouteProps) {
   }
 
   const number = body.number;
+  const ticketIndex = typeof body.ticketIndex === "number" ? body.ticketIndex : 0;
 
   if (typeof number !== "number" || !Number.isInteger(number) || number < 1 || number > 90) {
     return NextResponse.json({ error: "Choose a valid Tambola number" }, { status: 400 });
@@ -68,24 +70,46 @@ export async function POST(request: Request, { params }: MarkNumberRouteProps) {
       return NextResponse.json({ error: "Player not found in this room" }, { status: 404 });
     }
 
-    const ticketNumbers = player.ticket.rows.flat().filter((cell): cell is number => cell !== null);
+    const ticketField = player.ticket as any;
+    const normalizedTickets = ticketField.tickets || [
+      {
+        rows: ticketField.rows,
+        marked: player.marked || []
+      }
+    ];
+
+    if (ticketIndex < 0 || ticketIndex >= normalizedTickets.length) {
+      return NextResponse.json({ error: "Invalid ticket index" }, { status: 400 });
+    }
+
+    const targetTicket = normalizedTickets[ticketIndex];
+    const ticketNumbers = targetTicket.rows.flat().filter((cell: any): cell is number => cell !== null);
 
     if (!ticketNumbers.includes(number)) {
       return NextResponse.json({ error: "That number is not on this ticket" }, { status: 400 });
     }
 
-    const marked = new Set(player.marked);
-
-    if (marked.has(number)) {
-      marked.delete(number);
+    const markedSet = new Set<number>(targetTicket.marked);
+    if (markedSet.has(number)) {
+      markedSet.delete(number);
     } else {
-      marked.add(number);
+      markedSet.add(number);
     }
+    targetTicket.marked = Array.from(markedSet).sort((a, b) => a - b);
 
-    const nextMarked = Array.from(marked).sort((a, b) => a - b);
+    const mergedMarked = Array.from(
+      new Set<number>(normalizedTickets.flatMap((t: any) => t.marked))
+    ).sort((a, b) => a - b);
+
     const { data: updatedPlayer, error: updateError } = await supabase
       .from("players")
-      .update({ marked: nextMarked })
+      .update({
+        ticket: {
+          rows: normalizedTickets[0].rows,
+          tickets: normalizedTickets
+        },
+        marked: mergedMarked
+      })
       .eq("id", player.id)
       .select("id, room_id, name, session_id, ticket, marked, joined_at")
       .single<PlayerRecord>();
