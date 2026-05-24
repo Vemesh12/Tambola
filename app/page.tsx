@@ -22,7 +22,7 @@ export default function Home() {
       <nav className="flex items-center justify-between gap-4 py-2">
         <div className="text-lg font-black tracking-wide text-ink">Tambola Online</div>
         <div className="rounded-full border border-ink/10 bg-white/70 px-3 py-1 text-sm font-semibold text-ink/70">
-          Week 1 setup
+          By Vemesh Bypureddi
         </div>
       </nav>
 

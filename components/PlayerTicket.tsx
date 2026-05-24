@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useEffect } from "react";
 import type { TicketGrid } from "@/lib/types";
 
 type PlayerTicketProps = {
@@ -13,11 +14,21 @@ export function PlayerTicket({
   ticket,
   calledNumbers,
   markedNumbers,
-  onToggleNumber
+  onToggleNumber,
 }: PlayerTicketProps) {
   const called = new Set(calledNumbers);
   const marked = new Set(markedNumbers);
   const latestNumber = calledNumbers.at(-1);
+
+  // Announce the latest called number using Web Speech API for all players
+  useEffect(() => {
+    if (calledNumbers.length === 0) return;
+    const latest = calledNumbers[calledNumbers.length - 1];
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      const utterance = new SpeechSynthesisUtterance(`${latest}`);
+      window.speechSynthesis.speak(utterance);
+    }
+  }, [calledNumbers]);
 
   return (
     <div className="grid grid-cols-9 gap-1.5">
@@ -35,12 +46,12 @@ export function PlayerTicket({
                 cell === null
                   ? "cursor-default border-transparent bg-ink/[0.045] text-transparent"
                   : isMarked
-                    ? "border-gulal bg-gulal text-white line-through cursor-pointer hover:bg-gulal/90"
-                    : isLatest
-                      ? "border-saffron border-2 bg-white text-ink cursor-pointer hover:bg-saffron/10 animate-pulse"
-                      : isCalled
-                        ? "border-ink bg-white text-ink cursor-pointer hover:bg-ink/5"
-                        : "border-ink/10 bg-ink/[0.02] text-ink/25 cursor-not-allowed"
+                  ? "border-gulal bg-gulal text-white line-through cursor-pointer hover:bg-gulal/90"
+                  : isLatest
+                  ? "border-saffron border-2 bg-white text-ink cursor-pointer hover:bg-saffron/10 animate-pulse"
+                  : isCalled
+                  ? "border-ink bg-white text-ink cursor-pointer hover:bg-ink/5"
+                  : "border-ink/10 bg-ink/[0.02] text-ink/25 cursor-not-allowed",
               ].join(" ")}
               disabled={cell === null || !isCalled}
               onClick={() => {

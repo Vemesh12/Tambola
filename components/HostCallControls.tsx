@@ -35,6 +35,11 @@ export function HostCallControls({ code, calledCount }: HostCallControlsProps) {
       }
 
       setLatestNumber(payload.number);
+      // Announce the number using Web Speech API for host and players to hear
+      if (typeof window !== "undefined" && 'speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(`${payload.number}`);
+        window.speechSynthesis.speak(utterance);
+      }
       router.refresh();
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "Could not call number");
