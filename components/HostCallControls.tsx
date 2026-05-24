@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 type HostCallControlsProps = {
@@ -20,9 +20,18 @@ export function HostCallControls({ code, calledCount }: HostCallControlsProps) {
   const [isCalling, setIsCalling] = useState(false);
   const allNumbersCalled = calledCount >= 90;
 
+  // Warm‑up the speech synthesis voice list (helps on first call in production)
+  useEffect(() => {
+    if (typeof window !== "undefined" && 'speechSynthesis' in window) {
+      speechSynthesis.getVoices();
+    }
+  }, []);
+
   async function callNumber() {
     setError("");
     setIsCalling(true);
+
+
 
     try {
       const response = await fetch(`/api/rooms/${code}/call`, {
@@ -35,8 +44,9 @@ export function HostCallControls({ code, calledCount }: HostCallControlsProps) {
       }
 
       setLatestNumber(payload.number);
-      // Announce the number using Web Speech API for host and players to hear
+      // Cancel any pending "Calling number" utterance and announce the actual number
       if (typeof window !== "undefined" && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(`${payload.number}`);
         window.speechSynthesis.speak(utterance);
       }
